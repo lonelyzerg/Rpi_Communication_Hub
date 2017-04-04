@@ -17,7 +17,8 @@ import javax.sound.sampled.*;
 public class Server {
 	private ServerSocket serverSocket;
 	boolean stopFlag = false;
-	
+	PipedInputStream pis;
+	PipedOutputStream pos;
 	public static void main(String[] args) {
 		Server s = new Server();
 		s.server();
@@ -31,6 +32,8 @@ public class Server {
 				System.out.println("Started");
 				Handle h = new Handle(socket);
 				h.start();
+				Play p = new Play();
+				p.start();
 			}
 		} catch (Exception e){
 			System.out.println(e);
@@ -47,23 +50,26 @@ public class Server {
 		
 		public void run(){
 			try{
+				pos = new PipedOutputStream();
 				InputStream in = s.getInputStream();
 				byte[] data = new byte[10000];
 				ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-				int count = 0;
+				int len = 0;
 				int length = 0;
 				
-				while((length = in.read(data)) != 0){
+				while((len = in.read(data)) != 0){
 					//System.out.println(data);
-					outputStream.write(data, 0, length);
-					count += 1;
-					System.out.println(count);
-					if(count == 10){
-						Thread play = new Play(outputStream.toByteArray());
-						outputStream.reset();
-						play.start();
-						count = 0;
-					}
+					//outputStream.write(data, 0, len);
+					pos.write(data, 0, len);
+//					length += 1;
+//					
+//					if(length >= 1){
+//						System.out.println("play one piece of data.");
+//						Thread play = new Play(outputStream.toByteArray());
+//						outputStream.reset();
+//						play.start();
+//						length = 0;
+//					}
 				}
 			} catch (Exception e){
 				System.out.println(e);
@@ -73,24 +79,29 @@ public class Server {
 	}
 	
 	class Play extends Thread{
+		
 		byte tempBuffer[] = new byte[10000];
 		private AudioFormat audioFormat;
 		private AudioInputStream audioInputStream;
 		private SourceDataLine sourceDataLine;
 		byte[] audioData;
-		public Play(byte[] data){
-			this.audioData = data;		
-		}
+		
+//		public Play(byte[] data){
+//			this.audioData = data;		
+//		}
 		public void run(){
 			try{
+				pis = new PipedInputStream();
+				pis.connect(pos);
+				sleep(300);
 				
-
 				//Get an input stream on the
 				// byte array containing the data
-				InputStream byteArrayInputStream = new ByteArrayInputStream(audioData);
+				//InputStream bis = new ByteArrayInputStream();
 				AudioFormat audioFormat = getAudioFormat();
-				audioInputStream = new AudioInputStream(byteArrayInputStream,audioFormat,audioData.length/audioFormat.getFrameSize());
-				System.out.println("started");
+				System.out.println(pis.available());
+				//audioInputStream = new AudioInputStream(bis,audioFormat,audioData.length/audioFormat.getFrameSize());
+				
 				DataLine.Info dataLineInfo =new DataLine.Info(SourceDataLine.class,audioFormat);
 				sourceDataLine = (SourceDataLine)AudioSystem.getLine(dataLineInfo);
 				sourceDataLine.open(audioFormat);
@@ -105,9 +116,11 @@ public class Server {
 				//Keep looping until the input
 				// read method returns -1 for
 				// empty stream.
-				while((cnt = audioInputStream.read(tempBuffer, 0,tempBuffer.length)) != -1){
+				while((cnt = pis.read(tempBuffer)) != -1){
+					//cnt = audioInputStream.read(tempBuffer)
+					System.out.println(pis.available());
 					if(cnt > 0){
-						System.out.println("playing");
+						//System.out.println("playing");
 						//Write data to the internal
 						// buffer of the data line
 						// where it will be delivered

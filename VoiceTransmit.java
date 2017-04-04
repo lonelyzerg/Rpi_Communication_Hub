@@ -19,9 +19,6 @@ import javax.sound.sampled.*;
 
 public class VoiceTransmit {
 	boolean stopCapture = false;
-	private Socket client;
-	private InputStream in;
-	private OutputStream out;
 	public static void main(String[] args) {
 		VoiceTransmit v = new VoiceTransmit();
 		v.voiceTransmit();
@@ -31,12 +28,8 @@ public class VoiceTransmit {
 	public void voiceTransmit(){
 		
 		try{
-			System.out.println("abc" + 1);
 			//client = new Socket("52.14.103.104", 10010);
-			client = new Socket("127.0.0.1", 10010); // Create socket
-			client.setSoTimeout(10000);
-			in = client.getInputStream();
-			out = client.getOutputStream();
+			
 			Thread capture = new Capture();
 			capture.start();
 		} catch (Exception e) {
@@ -49,12 +42,17 @@ public class VoiceTransmit {
 	class heartRateRcv extends Thread{
 		public void run(){
 			try{
+				Socket client = new Socket("127.0.0.1", 10011); // Create socket. Port 10011 is for heart rate data.
+				client.setSoTimeout(10000);
+				InputStream in = client.getInputStream();
+				OutputStream out = client.getOutputStream();
 				byte[] buffer = new byte[20];
 				DatagramSocket hrSocket = new DatagramSocket();
 				DatagramPacket hrPacket = new DatagramPacket(buffer, buffer.length);
 				while(!stopCapture){
 					hrSocket.receive(hrPacket);
-					Send(addMark(hrPacket.getData()));
+					out.write(hrPacket.getData());
+					out.flush();
 				}
 				sleep(200);
 				hrSocket.close();
@@ -68,10 +66,16 @@ public class VoiceTransmit {
 	class Capture extends Thread {
 		PipedOutputStream pos = new PipedOutputStream();
 		PipedInputStream pis = new PipedInputStream();
-		
+		Socket client;
+		InputStream in;
+		OutputStream out;
 		public void run() {
 			try {
 				pos.connect(pis);
+				client = new Socket("127.0.0.1", 10010); // Create socket. Port 10010 is for audio data.
+				client.setSoTimeout(10000);
+				in = client.getInputStream();
+				out = client.getOutputStream();
 				byte inputBuffer[] = new byte[800];
 				AudioFormat audioFormat = getAudioFormat();
 				TargetDataLine targetDataLine;
@@ -103,15 +107,27 @@ public class VoiceTransmit {
 		class Reader extends Thread{
 			//read audio data from pipe and send it through tcp socket.
 			public void run(){
-				byte outputBuffer[] = new byte[100];
+				byte outputBuffer[] = new byte[2000];
+//				ByteArrayOutputStream bos = new ByteArrayOutputStream();
 				int read = 0;
+//				int length = 0;
 				while(!stopCapture) {
 					try {
-						read = pis.read(outputBuffer,0,100);
-						if (read > 0)
-							//Send("Voice data".getBytes());
-							Send(outputBuffer);
-							//Send(addMark(outputBuffer));
+						read = pis.read(outputBuffer);
+						if (read > 0){
+							
+//							bos.write(outputBuffer, 0, read);
+//							length += 1;
+//							if(length >= 1){
+								//Send("Voice data".getBytes());
+								//System.out.println(bos.size());
+							out.write(outputBuffer, 0, read);
+							out.flush();
+//							bos.reset();
+//								length = 0;
+								//Send(addMark(outputBuffer));
+//							}
+						}
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -121,27 +137,28 @@ public class VoiceTransmit {
 		}
 	}
 	
-	public void Send(byte[] data){
-		try{			
-			out.write(data);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+//	public void Send(byte[] data){
+//		try{			
+//			out.write(data);
+//			out.flush();
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//	}
 	
-	public byte[] addMark (byte[] b){
-		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-	    try {
-	    	//outputStream.write(byte(0xff));
-	    	outputStream.write("\n".getBytes());
-	    	outputStream.write(b);
-	    	//outputStream.write(byte(0xff));
-	    	outputStream.write("\n".getBytes());
-	    } catch (IOException e) {
-	    	e.printStackTrace();
-	    }
-	    return outputStream.toByteArray();
-	}
+//	public byte[] addMark (byte[] b){
+//		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+//	    try {
+//	    	//outputStream.write(byte(0xff));
+//	    	outputStream.write("\n".getBytes());
+//	    	outputStream.write(b);
+//	    	//outputStream.write(byte(0xff));
+//	    	outputStream.write("\n".getBytes());
+//	    } catch (IOException e) {
+//	    	e.printStackTrace();
+//	    }
+//	    return outputStream.toByteArray();
+//	}
 	
 	
 
