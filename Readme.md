@@ -4,12 +4,8 @@ sensor.py is used to get heart rate sensor data by bluetooth and send it to loca
 
 see https://github.com/karulis/pybluez
 
-
-VoiceTransmit.java is used to receive the heart rate data and record voice and send them to a remote server (localhost here, should be AWS).
-
-
-Server.java is used to receive heart rate data and voice data and playback the voice recorded.
+Publisher_cmd.java and Subscriber_cmd.java is the source code for publishing and receiving video/audio through mqtt.
 
 ## Update:
 
-
+2018-04-18: Use ffmpeg to record video and audio.
